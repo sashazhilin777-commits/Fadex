@@ -622,21 +622,36 @@ async def withdraw_start(msg: Message, state: FSMContext):
     await state.set_state(WithdrawStates.waiting_amount)
     await msg.answer(f"💰 Ваш баланс: ${bal:.2f}\n\nВведите сумму вывода (мин 10, макс {bal:.2f}):")
 
-@dp.message(WithdrawStates.waiting_amount, F.text.regex(r"^\d+(\.\d+)?$"))
-async def withdraw_amount(msg: Message, state: FSMContext):
-    amount = float(msg.text)
-    bal = get_balance(msg.from_user.id)
+@dp.message(DepositStates.waiting_custom, F.text.regex(r"^\d+(\.\d+)?$"))
+async def deposit_custom_amount(msg: Message, state: FSMContext):
+    amount = float(msg.text.strip())
     
     if amount < 10:
-        await msg.answer("❌ Минимальная сумма вывода — 10 USDT")
-        return
-    if amount > bal:
-        await msg.answer(f"❌ Недостаточно средств. Ваш баланс: ${bal:.2f}")
+        await msg.answer("❌ Минимальная сумма пополнения — 10 USDT. Попробуйте ещё раз:", reply_markup=back_menu_kb())
         return
     
-    await state.update_data(amount=amount)
-    await state.set_state(WithdrawStates.waiting_wallet)
-    await msg.answer("📤 Введите ваш TRC20 адрес (начинается с T, 34 символа):\n\nПример: `TXXXXXXXXXXXX...`", parse_mode="Markdown")
+    if amount > 5000:
+        await msg.answer("❌ Максимальная сумма пополнения — 5000 USDT. Попробуйте ещё раз:", reply_markup=back_menu_kb())
+        return
+    
+    payment_id = create_manual_payment(msg.from_user.id, amount, "deposit")
+    
+    await msg.answer(
+        f"🧾 **СЧЁТ НА ПОПОЛНЕНИЕ**\n\n"
+        f"💰 Сумма: **{amount} USDT**\n\n"
+        f"📤 **Кошелёк для перевода (TRC20):**\n"
+        f"<code>{USDT_WALLET}</code>\n\n"
+        f"📝 **ОБЯЗАТЕЛЬНО укажите ID в комментарии:**\n"
+        f"<code>pay_{payment_id}</code>\n\n"
+        f"✅ После перевода нажмите «Я ПЕРЕВЁЛ»\n\n"
+        f"⚠️ Важно: переводы без указания ID не обрабатываются!",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Я ПЕРЕВЁЛ", callback_data=f"payment_done_{payment_id}")],
+            [InlineKeyboardButton(text="❌ ОТМЕНИТЬ", callback_data=f"payment_cancel_{payment_id}")]
+        ])
+    )
+    await state.clear()
 
 @dp.message(WithdrawStates.waiting_wallet)
 async def withdraw_wallet(msg: Message, state: FSMContext):
@@ -837,9 +852,15 @@ async def direct_select_qty(cb: CallbackQuery, state: FSMContext):
 
 # ---------- ОБРАБОТЧИКИ ПОПОЛНЕНИЯ ----------
 @dp.callback_query(F.data.startswith("dep_"))
-async def deposit_amount(cb: CallbackQuery):
+async def deposit_amount(cb: CallbackQuery, state: FSMContext):
     if cb.data == "dep_custom":
-        await cb.message.edit_text("💸 Введите сумму в USDT (мин 10, макс 5000):\n\n/otmena - отмена", reply_markup=back_menu_kb())
+        await state.set_state(DepositStates.waiting_custom)
+        await cb.message.edit_text(
+            "💸 Введите сумму в USDT (мин 10, макс 5000):\n\n"
+            "Пример: 100\n\n"
+            "/otmena - отмена",
+            reply_markup=back_menu_kb()
+        )
         await cb.answer()
         return
     
@@ -848,20 +869,20 @@ async def deposit_amount(cb: CallbackQuery):
     
     await cb.message.delete()
     await cb.message.answer(
-        f"🧾 СЧЁТ НА ПОПОЛНЕНИЕ\n\n"
-        f"💰 Сумма: {amount} USDT\n\n"
-        f"📤 КОШЕЛЁК (TRC20):\n"
+        f"🧾 **СЧЁТ НА ПОПОЛНЕНИЕ**\n\n"
+        f"💰 Сумма: **{amount} USDT**\n\n"
+        f"📤 **Кошелёк для перевода (TRC20):**\n"
         f"<code>{USDT_WALLET}</code>\n\n"
-        f"📝 ОБЯЗАТЕЛЬНО укажите ID в комментарии:\n"
+        f"📝 **ОБЯЗАТЕЛЬНО укажите ID в комментарии:**\n"
         f"<code>pay_{payment_id}</code>\n\n"
-        f"✅ После перевода нажмите «Я ПЕРЕВЁЛ»\n"
-        f"❌ Отмена - нажмите «ОТМЕНИТЬ»",
+        f"✅ После перевода нажмите «Я ПЕРЕВЁЛ»",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="✅ Я ПЕРЕВЁЛ", callback_data=f"payment_done_{payment_id}")],
             [InlineKeyboardButton(text="❌ ОТМЕНИТЬ", callback_data=f"payment_cancel_{payment_id}")]
         ])
     )
+    await state.clear()
     await cb.answer()
 
 @dp.message(Command("otmena"))
