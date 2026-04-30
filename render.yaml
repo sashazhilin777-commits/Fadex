@@ -4,7 +4,8 @@ services:
     runtime: image
     repo: https://github.com/sashazhilin777-commits/Fadex
     plan: free
-    dockerfilePath: ./Dockerfile
+    image:
+      dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
       - key: BOT_TOKEN
