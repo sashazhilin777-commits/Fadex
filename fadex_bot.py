@@ -415,7 +415,7 @@ def main_menu():
             [KeyboardButton(text="💰 Пополнить"), KeyboardButton(text="📦 Мои покупки")],
             [KeyboardButton(text="📜 Правила"), KeyboardButton(text="🆘 Поддержка")],
             [KeyboardButton(text="💸 Вывод средств"), KeyboardButton(text="🎫 Купон")],
-            [KeyboardButton(text="📊 Наличие"), KeyboardButton(text="🔐 Админ панель")]
+            [KeyboardButton(text="📊 Наличие")],
         ],
         resize_keyboard=True
     )
