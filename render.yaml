@@ -1,10 +1,11 @@
 services:
   - type: web
-    name: fadex-bot
+    name: Fadex
     runtime: image
     repo: https://github.com/sashazhilin777-commits/Fadex
     plan: free
     dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
     envVars:
       - key: BOT_TOKEN
         value: "8650869989:AAGQnalF4fm8zACYNFZPfKzcpPIOWhonqe8"
